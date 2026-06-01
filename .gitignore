@@ -7,3 +7,7 @@ dist/
 # Local/generated highlight fallback assets
 extra/build/
 highlight.js-mini/
+
+# Local scratch files
+bucket/
+PROJECT_CONTEXT.md

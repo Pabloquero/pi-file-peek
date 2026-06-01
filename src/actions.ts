@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { formatPresenceLabel, updatePeekProjectSettings } from "./helpers.js";
 import { pickFile as openFilePicker } from "./ui/file-picker.js";
+import { openSettingsPicker } from "./ui/settings-picker.js";
 import type { PeekCommand } from "./commands.js";
 import type { ConnectionStore } from "./connection.js";
 import type { TrackedFilesStore } from "./tracking.js";
@@ -72,8 +73,8 @@ export function createPeekActions(deps: PeekActionsDeps) {
     return `Peek status\nendpoint=${deps.endpointId}\nconnected=${connected}\nsubscribed=${subscribed}\nfrom=${source}\nautoSub=${settings.autoSub}\nautoCon=${settings.autoCon}\nautoConnectPaused=${deps.connection.autoConnectSuppressed}\nnotifications=${settings.notifications}\nshowHeader=${settings.showHeader}\nshowFooter=${settings.showFooter}\ncloseAll=${settings.closeAll}\nrecent:\n${recent}\npast:\n${top}\nlogs:\n${deps.debugLog.slice(-10).join("\n") || "none"}`;
   };
 
-  const toggleSetting = (name: ToggleSetting) => {
-    const nextValue = !deps.getSettings()[name];
+  const setSetting = (name: ToggleSetting, nextValue: boolean) => {
+    if (deps.getSettings()[name] === nextValue) return;
     const settings = { ...deps.getSettings(), [name]: nextValue };
     deps.setSettings(settings);
     if (name === "debug") deps.setDebug(nextValue);
@@ -84,16 +85,20 @@ export function createPeekActions(deps: PeekActionsDeps) {
     return deps.notify(`Peek setting ${name} ${nextValue ? "enabled" : "disabled"}`, "info", true);
   };
 
+  const toggleSetting = (name: ToggleSetting) => setSetting(name, !deps.getSettings()[name]);
+
   const openSettingsMenu = async (uiCtx?: any) => {
     const names: ToggleSetting[] = ["autoSub", "autoCon", "debug", "notifications", "showHeader", "showFooter", "closeAll"];
     const ctx = uiCtx ?? deps.getCtx();
     if (!ctx?.hasUI) return deps.notify(names.map((name) => `${name}=${deps.getSettings()[name]}`).join("\n"), "info", true);
-    while (true) {
-      const current = deps.getSettings();
-      const choice = await openFilePicker(ctx, names.map((name) => ({ value: name, label: `${name}: ${current[name] ? "on" : "off"}` })), "Peek settings: toggle local setting");
-      if (!choice) return;
-      if (names.includes(choice as ToggleSetting)) toggleSetting(choice as ToggleSetting);
-    }
+    return openSettingsPicker(
+      ctx,
+      names.map((name) => ({ id: name, label: name, value: deps.getSettings()[name] })),
+      "Peek settings: toggle local setting",
+      (id, value) => {
+        if (names.includes(id as ToggleSetting)) setSetting(id as ToggleSetting, value);
+      },
+    );
   };
 
   const run = async (action: PeekCommand, argText = "", commandCtx?: any): Promise<void> => {

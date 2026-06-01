@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { DEFAULT_PEEK_SETTINGS, EXTENSION_VERSION, HEARTBEAT_MS, STALE_MS } from "./defaults.js";
-import type { PeekCustomTool, PeekDirs, PeekKeyAction, PeekKeySettings, PeekPresence, PeekSettings } from "./types.js";
+import type { PeekCustomTool, PeekDirs, PeekExtraLanguageMap, PeekKeyAction, PeekKeySettings, PeekPresence, PeekSettings } from "./types.js";
 
 export { EXTENSION_VERSION, HEARTBEAT_MS, STALE_MS };
 
@@ -133,6 +133,7 @@ export function loadPeekSettings(projectRoot: string): PeekSettings {
     showFooter: readBooleanSetting(globalConfig.showFooter, projectConfig.showFooter, defaults.showFooter),
     closeAll: readBooleanSetting(globalConfig.closeAll, projectConfig.closeAll, defaults.closeAll),
     customTools: loadCustomTools(projectConfig.customTools ?? globalConfig.customTools),
+    extraLanguages: loadMergedExtraLanguages(globalConfig.extraLanguages, projectConfig.extraLanguages),
     keys: loadMergedKeySettings(globalConfig.keys, projectConfig.keys, defaults.keys),
   };
 }
@@ -169,6 +170,36 @@ function loadCustomTools(raw: unknown): PeekCustomTool[] {
     if (!tool || !from || !mode) return [];
     return [{ tool, from, field, mode, actions: actions?.length ? actions : undefined }];
   });
+}
+
+function normalizeExtension(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return "";
+  return trimmed.startsWith(".") ? trimmed : `.${trimmed}`;
+}
+
+function normalizeLanguageName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function loadExtraLanguages(raw: unknown): PeekExtraLanguageMap {
+  if (!Array.isArray(raw)) return {};
+  const entries: Array<[string, string]> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    for (const [ext, language] of Object.entries(item as Record<string, unknown>)) {
+      if (typeof language !== "string") continue;
+      const normalizedExt = normalizeExtension(ext);
+      const normalizedLanguage = normalizeLanguageName(language);
+      if (!normalizedExt || !normalizedLanguage) continue;
+      entries.push([normalizedExt, normalizedLanguage]);
+    }
+  }
+  return Object.fromEntries(entries);
+}
+
+function loadMergedExtraLanguages(globalRaw: unknown, projectRaw: unknown): PeekExtraLanguageMap {
+  return { ...loadExtraLanguages(globalRaw), ...loadExtraLanguages(projectRaw) };
 }
 
 export function updatePeekProjectSettings(projectRoot: string, patch: Record<string, unknown>): void {

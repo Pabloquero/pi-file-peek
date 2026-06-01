@@ -1,6 +1,6 @@
 {
   "name": "@pabloquero/pi-file-peek",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi extension for connecting sessions and previewing files across sessions.",
   "keywords": [
     "pi-package",

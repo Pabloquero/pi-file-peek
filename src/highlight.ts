@@ -1,22 +1,23 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { createRequire } from "node:module";
 import { getLanguageFromPath as piGetLanguageFromPath, highlightCode as piHighlightCode } from "@earendil-works/pi-coding-agent";
-import type { DebugFn, HljsApi } from "./types.js";
+import type { DebugFn, HljsApi, PeekSettings } from "./types.js";
 import { expandTabs, getPeekRuntimeRoot } from "./helpers.js";
 import { renderMarkdown } from "./markdown.js";
 
 const requireFromHere = createRequire(import.meta.url);
 
-function classToThemeColor(className: string): string {
-  if (/comment/.test(className)) return "syntaxComment";
-  if (/keyword|operator|built_in|builtin-name|selector-tag|literal/.test(className)) return "syntaxKeyword";
+function classToThemeColor(className: string): string | undefined {
+  if (/comment|quote|doctag/.test(className)) return "syntaxComment";
+  if (/keyword|selector-tag|literal|meta/.test(className)) return "syntaxKeyword";
+  if (/built_in|builtin-name|type|class|title\.class/.test(className)) return "syntaxType";
   if (/string|regexp|template-variable/.test(className)) return "syntaxString";
   if (/number/.test(className)) return "syntaxNumber";
-  if (/title\.function|title function|function|attr/.test(className)) return "syntaxFunction";
-  if (/type|class|title\.class/.test(className)) return "syntaxType";
-  if (/variable|property|params/.test(className)) return "syntaxVariable";
-  if (/punctuation/.test(className)) return "syntaxPunctuation";
-  return "text";
+  if (/title|function/.test(className)) return "syntaxFunction";
+  if (/attr|variable|property|params/.test(className)) return "syntaxVariable";
+  if (/operator|punctuation|tag/.test(className)) return "syntaxPunctuation";
+  return undefined;
 }
 
 function decodeEntities(text: string): string {
@@ -31,7 +32,8 @@ function htmlToAnsi(html: string, theme: any): string {
   let match: RegExpExecArray | null;
   while ((match = regex.exec(html)) !== null) {
     if (match[1]) {
-      stack.push((s: string) => theme.fg(classToThemeColor(match[1]!), s));
+      const color = classToThemeColor(match[1]!);
+      stack.push(color ? ((s: string) => theme.fg(color, s)) : ((s: string) => s));
     } else if (match[0] === "</span>") {
       if (stack.length > 1) stack.pop();
     } else if (match[2]) {
@@ -47,7 +49,8 @@ function normalizeRenderedLines(lines: string[]): string[] {
 
 export class HighlightService {
   private hljs: HljsApi | undefined;
-  constructor(private readonly pushDebug: DebugFn) {}
+  private extraLanguageNames = new Set<string>();
+  constructor(private readonly pushDebug: DebugFn, private readonly getSettings: () => PeekSettings) {}
 
   private getExtraHighlightBuildDir(): string {
     return path.join(getPeekRuntimeRoot(), "extra", "build", "lib");
@@ -58,10 +61,18 @@ export class HighlightService {
     try {
       const libDir = this.getExtraHighlightBuildDir();
       const core = requireFromHere(path.join(libDir, "core.js")) as HljsApi;
-      try {
-        const mod = requireFromHere(path.join(libDir, "languages", "gdscript.js"));
-        core.registerLanguage("gdscript", mod.default ?? mod);
-      } catch {}
+      const languagesDir = path.join(libDir, "languages");
+      for (const fileName of fs.existsSync(languagesDir) ? fs.readdirSync(languagesDir) : []) {
+        if (!fileName.endsWith(".js")) continue;
+        const languageName = path.basename(fileName, ".js");
+        try {
+          const mod = requireFromHere(path.join(languagesDir, fileName));
+          core.registerLanguage(languageName, mod.default ?? mod);
+          this.extraLanguageNames.add(languageName.toLowerCase());
+        } catch (error) {
+          this.pushDebug(`extra language load failed file=${fileName}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
       this.hljs = core;
       this.pushDebug(`extra hljs loaded from ${libDir}`);
       return core;
@@ -71,13 +82,22 @@ export class HighlightService {
     }
   }
 
+  private resolveExtraLanguage(ext: string, engine: HljsApi | undefined): string | undefined {
+    if (!engine || !ext) return undefined;
+    const mapped = this.getSettings().extraLanguages[ext];
+    if (mapped && engine.getLanguage(mapped)) return mapped;
+    const normalized = ext.replace(/^\./, "").toLowerCase();
+    return engine.getLanguage(normalized) ? normalized : undefined;
+  }
+
   private detectTarget(filePath: string | undefined): { language: string; source: "pi" | "extra" } | undefined {
     const ext = filePath ? path.extname(filePath).toLowerCase() : "";
-    if (ext === ".gds") return { language: "gdscript", source: "extra" };
     if (ext === ".mkd" || ext === ".markdown") return { language: "markdown", source: "pi" };
     if (!filePath) return undefined;
     const language = piGetLanguageFromPath(filePath);
-    return language ? { language, source: "pi" } : undefined;
+    if (language) return { language, source: "pi" };
+    const extraLanguage = this.resolveExtraLanguage(ext, this.loadExtraHljs());
+    return extraLanguage ? { language: extraLanguage, source: "extra" } : undefined;
   }
 
   render(content: string, filePath: string | undefined, theme: any): { lines: string[]; highlighted: boolean } {

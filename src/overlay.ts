@@ -8,6 +8,17 @@ import type { PeekSettings } from "./types.js";
 
 let nextOverlayId = 1;
 const overlayClosers = new Map<number, () => void>();
+const OVERLAY_COMMAND_SPACE_ROWS = 4;
+const OVERLAY_VERTICAL_MARGIN_ROWS = 4;
+const OVERLAY_TOP_MARGIN_ROWS = Math.floor(OVERLAY_VERTICAL_MARGIN_ROWS / 2);
+const OVERLAY_BOTTOM_MARGIN_ROWS = OVERLAY_COMMAND_SPACE_ROWS + Math.ceil(OVERLAY_VERTICAL_MARGIN_ROWS / 2);
+const OVERLAY_SIDE_MARGIN_COLS = 1;
+
+function getOverlayRenderHeight(termRows: number | undefined): number {
+  const terminalRows = Math.max(12, termRows ?? 32);
+  const usableRows = Math.max(1, terminalRows - OVERLAY_COMMAND_SPACE_ROWS);
+  return Math.max(8, usableRows - OVERLAY_VERTICAL_MARGIN_ROWS);
+}
 
 function displayNameForPath(filePath: string | undefined): string | undefined {
   if (!filePath) return undefined;
@@ -34,9 +45,10 @@ class ScrollOverlay {
     const outerInnerWidth = Math.max(24, width - 2);
     const textBlockWidth = Math.max(12, outerInnerWidth - this.framePad * 2);
     const textContentWidth = Math.max(8, textBlockWidth - this.textPadX * 2);
-    const chromeLines = (this.settings.showHeader ? 4 : 2) + (this.settings.showFooter ? 4 : 2);
-    const usableHeight = Math.max(7, height - chromeLines);
     const wrapped = this.rawLines.flatMap((line) => wrapTextWithAnsi(line, textContentWidth));
+    const chromeLines = (this.settings.showHeader ? 8 : 4) + (this.settings.showFooter ? 2 : 0);
+    const maxUsableHeight = Math.max(3, height - chromeLines);
+    const usableHeight = Math.max(1, Math.min(Math.max(wrapped.length, 1), maxUsableHeight));
     const maxOffset = Math.max(0, wrapped.length - usableHeight);
     this.lastUsableHeight = usableHeight;
     this.lastMaxOffset = maxOffset;
@@ -68,7 +80,9 @@ class ScrollOverlay {
     lines.push(textBlockRow());
     for (let i = 0; i < usableHeight; i++) lines.push(textBlockRow(visible[i] ?? ""));
     lines.push(textBlockRow());
-    const lineInfo = `${this.offset + 1}-${Math.min(this.offset + usableHeight, wrapped.length)}/${wrapped.length || 0}`;
+    const firstVisibleLine = wrapped.length === 0 ? 0 : this.offset + 1;
+    const lastVisibleLine = wrapped.length === 0 ? 0 : Math.min(this.offset + usableHeight, wrapped.length);
+    const lineInfo = `${firstVisibleLine}-${lastVisibleLine}/${wrapped.length}`;
     lines.push(centeredOuter(this.theme.fg("dim", truncateToWidth(lineInfo, outerInnerWidth))));
     if (this.settings.showFooter) {
       const keys = [
@@ -155,9 +169,22 @@ export function openOverlay(currentCtx: any, msg: PeekEnvelope, highlight: Highl
     };
     overlayClosers.set(overlayId, closeSelf);
     return {
-      render: (width: number) => overlay.render(Math.min(width, 100), 28),
+      render: (width: number, height?: number) => overlay.render(width, typeof height === "number" ? height : getOverlayRenderHeight(process.stdout.rows)),
       invalidate: () => {},
       handleInput: (data: string) => { overlay.handleInput(data, closeSelf, closeAll); _tui.requestRender(); },
     };
-  }, { overlay: true, overlayOptions: { anchor: "center", width: "85%", minWidth: 60, maxHeight: "85%", margin: 1 } });
+  }, {
+    overlay: true,
+    overlayOptions: {
+      anchor: "center",
+      width: "85%",
+      minWidth: 40,
+      margin: {
+        top: OVERLAY_TOP_MARGIN_ROWS,
+        right: OVERLAY_SIDE_MARGIN_COLS,
+        bottom: OVERLAY_BOTTOM_MARGIN_ROWS,
+        left: OVERLAY_SIDE_MARGIN_COLS,
+      },
+    },
+  });
 }

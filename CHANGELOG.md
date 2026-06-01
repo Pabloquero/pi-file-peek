@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1
+
+- Improved overlay sizing and positioning so previews are shorter, better centered, and leave more bottom command space.
+- Added configurable `extraLanguages` mappings for runtime extra highlight.js languages such as `.gd` -> `gdscript`.
+- Improved extra highlight.js fallback handling and docs for custom language loading.
+- Kept `/peek settings` open in place while toggling settings instead of reopening the list.
+- Improved disconnect handling so either side ending a connection clears the pair and pauses auto-reconnect for the rest of the session.
+
 ## 0.1.0
 
 - Initial public release of `pi-file-peek`.

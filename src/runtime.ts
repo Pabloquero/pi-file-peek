@@ -38,7 +38,7 @@ export function registerPeekExtension(pi: ExtensionAPI) {
   const resolveProjectFile = (inputPath: string | undefined) => resolveProjectFileInRoot(getProjectRoot(), inputPath);
   const resolveAnyFile = (inputPath: string | undefined) => resolvePeekPath(getProjectRoot(), inputPath);
 
-  const highlight = new HighlightService(pushDebug);
+  const highlight = new HighlightService(pushDebug, () => settings);
   const tracking = new TrackedFilesStore(dirs.trackedFiles, getProjectRoot, resolveProjectFile, pushDebug);
   const toolTracking = new ToolTrackingController(tracking, pushDebug, () => settings);
 

@@ -26,7 +26,10 @@ export type PeekSettings = {
   closeAll: boolean;
   keys: PeekKeySettings;
   customTools: PeekCustomTool[];
+  extraLanguages: PeekExtraLanguageMap;
 };
+
+export type PeekExtraLanguageMap = Record<string, string>;
 
 export type PeekCustomTool = {
   tool: string;

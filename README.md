@@ -111,6 +111,7 @@ Project settings override global settings.
 | `keys.pageDown`   | `"pageDown"` | Key name or Array with key names as String | Keys used to scroll one page down.                                   |
 | `keys.close`      | `"esc"`      | Key name or Array with key names as String | Keys used to close the overlay.                                      |
 | `customTools`     | `[]`         | array                                      | Extra rules for recognizing files touched by custom tools.           |
+| `extraLanguages`  | `[]`         | array                                      | Extra extension-to-highlight.js language mappings for runtime extra languages. |
 
 Copy-paste example:
 
@@ -131,7 +132,12 @@ Copy-paste example:
       "pageDown": "pageDown",
       "close": "esc"
     },
-    "customTools": []
+    "customTools": [],
+    "extraLanguages": [
+      {
+        ".gd": "gdscript"
+      }
+    ]
   }
 }
 ```
@@ -191,6 +197,18 @@ Common mappings include:
 ## Add your own languages
 
 If Pi's built-in highlighting does not cover a language you need, Peek can load extra highlight assets from a custom `extra/build/` folder.
+
+If the file extension does not directly match a loaded highlight.js language name or alias, add an `extraLanguages` mapping:
+
+```json
+{
+  "pi-file-peek": {
+    "extraLanguages": [
+      { ".gd": "gdscript" }
+    ]
+  }
+}
+```
 
 See [extra/README.md](extra/README.md) for the expected structure.
 

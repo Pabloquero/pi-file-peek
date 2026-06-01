@@ -69,6 +69,7 @@ Project values override global values per key.
 | `keys.pageDown` | `"pageDown"` | Key name or Array with key names as String | Scroll one page down. |
 | `keys.close` | `"esc"` | Key name or Array with key names as String | Close the overlay. |
 | `customTools` | `[]` | array | Extra rules for recognizing files touched by custom tools. |
+| `extraLanguages` | `[]` | array | Extra extension-to-highlight.js language mappings for runtime extra languages. |
 
 Copy-paste example:
 
@@ -89,7 +90,12 @@ Copy-paste example:
       "pageDown": "pageDown",
       "close": "esc"
     },
-    "customTools": []
+    "customTools": [],
+    "extraLanguages": [
+      {
+        ".gd": "gdscript"
+      }
+    ]
   }
 }
 ```
@@ -185,6 +191,12 @@ Connection labels:
 
 Default highlighting uses Pi built-in highlighting.
 
+Highlight fallback order is:
+
+1. Pi built-in highlighting.
+2. Extra languages loaded from runtime `extra/build/lib/languages/`, using `extraLanguages` extension mappings first, then direct language/alias matches.
+3. Plain text fallback.
+
 Markdown files use a terminal-friendly markdown renderer.
 
 Common mappings include:
@@ -200,9 +212,9 @@ Common mappings include:
 - `.css` is supported.
 - `.diff` is supported.
 
-Optional fallback example:
+Optional mapping example:
 
-- `.gds` can map to gdscript through the optional fallback assets.
+- `.gd` can map to `gdscript` through `extraLanguages`.
 
 ## Runtime extra assets
 

@@ -14,6 +14,7 @@ export const DEFAULT_PEEK_SETTINGS: PeekSettings = {
   showFooter: true,
   closeAll: false,
   customTools: [],
+  extraLanguages: {},
   keys: {
     scrollUp: ["up"],
     scrollDown: ["down"],

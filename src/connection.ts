@@ -152,6 +152,15 @@ export class ConnectionStore {
 
   refreshActivePeerFromPresence(): boolean {
     if (!this.activePeer) return false;
+    const outbound = this.findOutboundConnection();
+    if (!outbound || outbound.connection.to_endpoint_id !== this.activePeer.endpoint_id) {
+      const previousEndpointId = this.activePeer.endpoint_id;
+      this.activePeer = undefined;
+      this.suppressAutoConnect();
+      this.flushPresence();
+      this.pushDebug(`cleared disconnected peer ${previousEndpointId}; auto-connect paused`);
+      return false;
+    }
     const previousEndpointId = this.activePeer.endpoint_id;
     const peers = this.listLivePeers();
     const sameEndpoint = peers.find((peer) => peer.endpoint_id === previousEndpointId);
