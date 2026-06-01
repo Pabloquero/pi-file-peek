@@ -1,0 +1,9 @@
+node_modules/
+.pi/
+*.tgz
+dist/
+.DS_Store
+
+# Local/generated highlight fallback assets
+extra/build/
+highlight.js-mini/
