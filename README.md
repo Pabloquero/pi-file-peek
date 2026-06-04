@@ -77,7 +77,7 @@ For detailed behavior and runtime notes, see [docs/technical.md](docs/technical.
 
 - `/peek` — open menu
 - `/peek file` — open or send files from the last assistant response
-- `/peek diff` — open or send the latest captured edit diff/patch
+- `/peek diff` — open or send the latest turn with captured edit diffs/patches
 - `/peek path <file-path>` — open or send a specific file path
 - `/peek past` — open or send tracked files from session history
 - `/peek sub` — subscribe as receiver
@@ -106,7 +106,7 @@ Project settings override global settings.
 | `showHeader`      | `true`       | `true`, `false`                            | Show the overlay header.                                             |
 | `showFooter`      | `true`       | `true`, `false`                            | Show overlay help rows in the footer. Line info still stays visible. |
 | `closeAll`        | `false`      | `true`, `false`                            | Close all stacked overlays at once instead of one by one.            |
-| `autoDiff`        | `false`      | `true`, `false`                            | Automatically open diff overlays after successful edit results.      |
+| `autoDiff`        | `false`      | `true`, `false`                            | Automatically open one grouped diff overlay after turns with edits.  |
 | `keys.scrollUp`   | `"up"`       | Key name or Array with key names as String | Keys used to scroll one line up.                                     |
 | `keys.scrollDown` | `"down"`     | Key name or Array with key names as String | Keys used to scroll one line down.                                   |
 | `keys.pageUp`     | `"pageUp"`   | Key name or Array with key names as String | Keys used to scroll one page up.                                     |

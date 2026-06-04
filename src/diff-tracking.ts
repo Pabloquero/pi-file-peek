@@ -61,8 +61,8 @@ function isPatchLikeToolResult(event: any): boolean {
 }
 
 export class DiffTrackingController {
-  private latest: PeekDiffPayload | undefined;
-  private recent: PeekDiffPayload[] = [];
+  private currentTurn: PeekDiffPayload[] = [];
+  private recentTurns: PeekDiffPayload[][] = [];
   private readonly handledToolResults = new Set<string>();
 
   constructor(
@@ -76,7 +76,17 @@ export class DiffTrackingController {
   ) {}
 
   onAgentStart(): void {
+    this.currentTurn = [];
     this.handledToolResults.clear();
+  }
+
+  onAgentEnd(): void {
+    if (this.currentTurn.length === 0) return;
+    const completedTurn = [...this.currentTurn];
+    this.recentTurns.push(completedTurn);
+    if (this.recentTurns.length > 10) this.recentTurns = this.recentTurns.slice(-10);
+    this.currentTurn = [];
+    if (this.deps.getSettings().autoDiff) this.openPayloads(completedTurn);
   }
 
   onToolResult(event: any): void {
@@ -85,9 +95,8 @@ export class DiffTrackingController {
     if (event.isError || !isPatchLikeToolResult(event)) return;
     const payload = payloadFromParts({ toolName: String(event.toolName ?? "tool"), toolCallId: event.toolCallId, details: event.details, source: "live" });
     if (!payload) return;
-    this.store(payload);
+    this.currentTurn.push(payload);
     this.deps.pushDebug(`diff captured tool=${payload.toolName} id=${payload.toolCallId ?? "none"}`);
-    if (this.deps.getSettings().autoDiff) this.openPayloads([payload]);
   }
 
   openLatestFromMemoryOrSession(sessionManager?: any): boolean {
@@ -98,35 +107,36 @@ export class DiffTrackingController {
   }
 
   private getRecentPayloads(sessionManager?: any): PeekDiffPayload[] {
-    if (this.recent.length > 0) return [...this.recent].reverse();
+    if (this.currentTurn.length > 0) return [...this.currentTurn];
+    const latestTurn = this.recentTurns[this.recentTurns.length - 1];
+    if (latestTurn && latestTurn.length > 0) return [...latestTurn];
     const recovered = this.recoverRecentFromSession(sessionManager);
     if (recovered.length > 0) {
-      for (const payload of recovered.slice().reverse()) this.store(payload, false);
+      this.recentTurns.push(recovered);
       return recovered;
     }
     return [];
   }
 
-  private store(payload: PeekDiffPayload, trim = true): void {
-    this.latest = payload;
-    this.recent.push(payload);
-    if (trim && this.recent.length > 10) this.recent = this.recent.slice(-10);
-  }
-
   private recoverRecentFromSession(sessionManager?: any): PeekDiffPayload[] {
     const branch = sessionManager?.getBranch?.();
     if (!Array.isArray(branch)) return [];
-    const payloads: PeekDiffPayload[] = [];
-    for (let i = branch.length - 1; i >= 0 && payloads.length < 10; i--) {
+    let turnPayloads: PeekDiffPayload[] = [];
+    for (let i = branch.length - 1; i >= 0; i--) {
       const entry = branch[i];
       if (entry?.type !== "message") continue;
       const msg = entry.message;
+      if (msg?.role === "user") {
+        if (turnPayloads.length > 0) return turnPayloads.reverse();
+        turnPayloads = [];
+        continue;
+      }
       if (msg?.role !== "toolResult") continue;
       if (msg.toolName !== "edit") continue;
       const payload = payloadFromParts({ toolName: msg.toolName, toolCallId: msg.toolCallId, details: msg.details, source: "history", timestamp: msg.timestamp });
-      if (payload) payloads.push(payload);
+      if (payload) turnPayloads.push(payload);
     }
-    return payloads;
+    return turnPayloads.reverse();
   }
 
   private openPayloads(payloads: PeekDiffPayload[]): void {

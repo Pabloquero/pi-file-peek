@@ -71,7 +71,7 @@ export function registerLifecycle(pi: any, deps: LifecycleDeps): void {
     deps.tracking.restoreLastTurnFromSession(ctx?.sessionManager, deps.getSettings().customTools);
   });
   pi.on("agent_start", async () => { deps.toolTracking.onAgentStart(); deps.diffTracking.onAgentStart(); });
-  pi.on("agent_end", async () => deps.toolTracking.onAgentEnd());
+  pi.on("agent_end", async () => { deps.toolTracking.onAgentEnd(); deps.diffTracking.onAgentEnd(); });
   pi.on("tool_result", async (event: unknown) => { deps.toolTracking.onToolResult(event); deps.diffTracking.onToolResult(event); });
   pi.on("session_shutdown", async () => {
     watcher?.close();

@@ -2,10 +2,10 @@
 
 ## 0.1.3
 
-- Added `/peek diff` to preview the latest captured edit diff or patch.
-- Added `autoDiff` setting, disabled by default, to open diff previews automatically after successful edit results.
+- Added `/peek diff` to preview the latest turn with captured edit diffs or patches.
+- Added `autoDiff` setting, disabled by default, to open one grouped diff preview after turns with edits.
 - Added diff capture from Pi `tool_result` events using `details.diff` and `details.patch`.
-- Added session-history fallback for `/peek diff` using recent `edit` tool results.
+- Added session-history fallback for `/peek diff` using the latest turn with `edit` tool results.
 - Added multi-item overlay navigation with left/right item switching and item counters.
 - Updated diff previews to send across connected Peek sessions like file previews.
 
