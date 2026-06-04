@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- Added `/peek diff` to preview the latest captured edit diff or patch.
+- Added `autoDiff` setting, disabled by default, to open diff previews automatically after successful edit results.
+- Added diff capture from Pi `tool_result` events using `details.diff` and `details.patch`.
+- Added session-history fallback for `/peek diff` using recent `edit` tool results.
+- Added multi-item overlay navigation with left/right item switching and item counters.
+- Updated diff previews to send across connected Peek sessions like file previews.
+
 ## 0.1.1
 
 - Improved overlay sizing and positioning so previews are shorter, better centered, and leave more bottom command space.
