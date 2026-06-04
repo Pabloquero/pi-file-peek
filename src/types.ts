@@ -24,6 +24,7 @@ export type PeekSettings = {
   showHeader: boolean;
   showFooter: boolean;
   closeAll: boolean;
+  autoDiff: boolean;
   keys: PeekKeySettings;
   customTools: PeekCustomTool[];
   extraLanguages: PeekExtraLanguageMap;
@@ -39,7 +40,7 @@ export type PeekCustomTool = {
   actions?: Array<"add" | "update" | "delete">;
 };
 
-export type PeekKeyAction = "scrollUp" | "scrollDown" | "pageUp" | "pageDown" | "close";
+export type PeekKeyAction = "scrollUp" | "scrollDown" | "pageUp" | "pageDown" | "prevItem" | "nextItem" | "close";
 
 export type PeekKeySettings = Record<PeekKeyAction, string[]>;
 

@@ -25,16 +25,37 @@ function displayNameForPath(filePath: string | undefined): string | undefined {
   try { return path.basename(filePath); } catch { return filePath; }
 }
 
+export type OverlayTextItem = {
+  title?: string;
+  subtitle?: string;
+  content: string;
+  virtualPath?: string;
+};
+
+type OverlayItem = {
+  lines: string[];
+  subtitle?: string;
+  fileName?: string;
+};
+
 class ScrollOverlay {
   private offset = 0;
+  private itemIndex = 0;
   private lastUsableHeight = 10;
   private lastMaxOffset = 0;
   private readonly framePad = 2;
   private readonly textPadX = 2;
   private readonly textPadY = 1;
-  constructor(private readonly rawLines: string[], private readonly theme: any, private readonly settings: PeekSettings, private readonly subtitle?: string, private readonly fileName?: string) {}
+  private readonly offsets = new Map<number, number>();
+  constructor(private items: OverlayItem[], private readonly theme: any, private readonly settings: PeekSettings) {}
   handleInput(data: string, closeSelf: () => void, closeAll: () => void): void {
-    if (this.settings.keys.close.some((key) => matchesKey(data, key as any))) return this.settings.closeAll ? closeAll() : closeSelf();
+    if (this.settings.keys.close.some((key) => matchesKey(data, key as any))) {
+      if (this.settings.closeAll) return closeAll();
+      if (this.items.length > 1) return this.removeCurrentItem();
+      return closeSelf();
+    }
+    if (this.items.length > 1 && this.settings.keys.prevItem.some((key) => matchesKey(data, key as any))) return this.switchItem(-1);
+    if (this.items.length > 1 && this.settings.keys.nextItem.some((key) => matchesKey(data, key as any))) return this.switchItem(1);
     const pageStep = Math.max(1, this.lastUsableHeight - 1);
     if (this.settings.keys.pageUp.some((key) => matchesKey(data, key as any))) this.offset = Math.max(0, this.offset - pageStep);
     if (this.settings.keys.pageDown.some((key) => matchesKey(data, key as any))) this.offset = Math.min(this.lastMaxOffset, this.offset + pageStep);
@@ -42,10 +63,14 @@ class ScrollOverlay {
     if (this.settings.keys.scrollDown.some((key) => matchesKey(data, key as any))) this.offset = Math.min(this.lastMaxOffset, this.offset + 1);
   }
   render(width: number, height: number): string[] {
+    const item = this.currentItem();
+    const rawLines = item.lines;
+    const subtitle = this.itemSubtitle(item);
+    const fileName = item.fileName;
     const outerInnerWidth = Math.max(24, width - 2);
     const textBlockWidth = Math.max(12, outerInnerWidth - this.framePad * 2);
     const textContentWidth = Math.max(8, textBlockWidth - this.textPadX * 2);
-    const wrapped = this.rawLines.flatMap((line) => wrapTextWithAnsi(line, textContentWidth));
+    const wrapped = rawLines.flatMap((line) => wrapTextWithAnsi(line, textContentWidth));
     const chromeLines = (this.settings.showHeader ? 8 : 4) + (this.settings.showFooter ? 2 : 0);
     const maxUsableHeight = Math.max(3, height - chromeLines);
     const usableHeight = Math.max(1, Math.min(Math.max(wrapped.length, 1), maxUsableHeight));
@@ -70,11 +95,11 @@ class ScrollOverlay {
       return this.theme.fg(frameColor, "│") + leftOuter + textBlock + rightOuter + this.theme.fg(frameColor, "│");
     };
     const lines = [this.theme.fg(frameColor, `┌${"─".repeat(outerInnerWidth)}┐`)];
-    const headerText = this.fileName ?? "";
+    const headerText = fileName ?? "";
     if (this.settings.showHeader) {
       lines.push(blankOuterRow);
       if (headerText) lines.push(centeredOuter(this.theme.fg("accent", this.theme.bold(headerText))));
-      if (this.subtitle) lines.push(centeredOuter(this.theme.fg("dim", this.subtitle)));
+      if (subtitle) lines.push(centeredOuter(this.theme.fg("dim", subtitle)));
       lines.push(blankOuterRow);
     }
     lines.push(textBlockRow());
@@ -88,9 +113,10 @@ class ScrollOverlay {
       const keys = [
         this.describePairKeys(this.settings.keys.scrollUp, this.settings.keys.scrollDown),
         this.describePairKeys(this.settings.keys.pageUp, this.settings.keys.pageDown),
+        this.items.length > 1 ? this.describePairKeys(this.settings.keys.prevItem, this.settings.keys.nextItem) : "",
         this.describeKeys(this.settings.keys.close),
-      ];
-      const labels = ["Scroll", "Pages", "Close"];
+      ].filter(Boolean);
+      const labels = ["Scroll", "Pages", ...(this.items.length > 1 ? ["Items"] : []), "Close"];
       const widths = keys.map((key, index) => Math.max(visibleWidth(key), visibleWidth(labels[index]!)));
       const keysRow = this.columnsRow(keys, widths);
       const labelsRow = this.columnsRow(labels, widths);
@@ -99,6 +125,29 @@ class ScrollOverlay {
     }
     lines.push(this.theme.fg(frameColor, `└${"─".repeat(outerInnerWidth)}┘`));
     return lines;
+  }
+
+  private currentItem(): OverlayItem {
+    return this.items[this.itemIndex] ?? { lines: [] };
+  }
+
+  private itemSubtitle(item: OverlayItem): string | undefined {
+    const counter = this.items.length > 1 ? `${this.itemIndex + 1}/${this.items.length}` : undefined;
+    if (counter && item.subtitle) return `${counter} • ${item.subtitle}`;
+    return counter ?? item.subtitle;
+  }
+
+  private switchItem(delta: number): void {
+    this.offsets.set(this.itemIndex, this.offset);
+    this.itemIndex = (this.itemIndex + delta + this.items.length) % this.items.length;
+    this.offset = this.offsets.get(this.itemIndex) ?? 0;
+  }
+
+  private removeCurrentItem(): void {
+    this.items.splice(this.itemIndex, 1);
+    this.offsets.clear();
+    if (this.itemIndex >= this.items.length) this.itemIndex = Math.max(0, this.items.length - 1);
+    this.offset = 0;
   }
 
   private describeKeys(first: string[], second?: string[]): string {
@@ -133,28 +182,40 @@ class ScrollOverlay {
   }
 }
 
-export function openOverlay(currentCtx: any, msg: PeekEnvelope, highlight: HighlightService, settings: PeekSettings, onClose?: () => void) {
+function itemFromEnvelope(msg: PeekEnvelope, highlight: HighlightService, theme: any): OverlayItem {
+  if (msg.kind === "file-ref" && msg.path) {
+    try {
+      const rendered = highlight.render(fs.readFileSync(msg.path, "utf8"), msg.path, theme);
+      return { lines: rendered.lines, subtitle: rendered.highlighted ? undefined : "Plain text fallback", fileName: displayNameForPath(msg.path) };
+    } catch (error) {
+      return { lines: ["[Could not open file]", error instanceof Error ? error.message : String(error)], subtitle: "Missing file", fileName: displayNameForPath(msg.path) };
+    }
+  }
+  return { lines: (msg.message ?? "").split(/\r?\n/), fileName: msg.tag };
+}
+
+function renderDiffText(content: string, theme: any): string[] {
+  return content.replace(/\r\n/g, "\n").split("\n").map((line) => {
+    if (line.startsWith("+") && !line.startsWith("+++")) return theme.fg("toolDiffAdded", line);
+    if (line.startsWith("-") && !line.startsWith("---")) return theme.fg("toolDiffRemoved", line);
+    return theme.fg("toolDiffContext", line);
+  });
+}
+
+function itemFromText(item: OverlayTextItem, highlight: HighlightService, theme: any): OverlayItem {
+  if (item.virtualPath?.endsWith(".diff") || item.virtualPath?.endsWith(".patch")) {
+    return { lines: renderDiffText(item.content, theme), subtitle: item.subtitle, fileName: item.title ?? displayNameForPath(item.virtualPath) };
+  }
+  const rendered = highlight.render(item.content, item.virtualPath, theme);
+  return { lines: rendered.lines, subtitle: item.subtitle ?? (rendered.highlighted ? undefined : "Plain text fallback"), fileName: item.title ?? displayNameForPath(item.virtualPath) };
+}
+
+function openOverlayItems(currentCtx: any, buildItems: (theme: any) => OverlayItem[], settings: PeekSettings, onClose?: () => void) {
   if (!currentCtx?.hasUI) return;
   void currentCtx.ui.custom((_tui: any, theme: any, _kb: any, done: (value: void) => void) => {
     const overlayId = nextOverlayId++;
-    let lines: string[];
-    let subtitle: string | undefined;
-    let fileName: string | undefined;
-    if (msg.kind === "file-ref" && msg.path) {
-      try {
-        const rendered = highlight.render(fs.readFileSync(msg.path, "utf8"), msg.path, theme);
-        lines = rendered.lines;
-        subtitle = rendered.highlighted ? undefined : "Plain text fallback";
-        fileName = displayNameForPath(msg.path);
-      } catch (error) {
-        lines = ["[Could not open file]", error instanceof Error ? error.message : String(error)];
-        subtitle = "Missing file";
-        fileName = displayNameForPath(msg.path);
-      }
-    } else {
-      lines = (msg.message ?? "").split(/\r?\n/);
-    }
-    const overlay = new ScrollOverlay(lines, theme, settings, subtitle, fileName);
+    const items = buildItems(theme);
+    const overlay = new ScrollOverlay(items.length > 0 ? items : [{ lines: ["No content"] }], theme, settings);
     let closed = false;
     const closeSelf = () => {
       if (closed) return;
@@ -187,4 +248,12 @@ export function openOverlay(currentCtx: any, msg: PeekEnvelope, highlight: Highl
       },
     },
   });
+}
+
+export function openOverlay(currentCtx: any, msg: PeekEnvelope, highlight: HighlightService, settings: PeekSettings, onClose?: () => void) {
+  openOverlayItems(currentCtx, (theme) => [itemFromEnvelope(msg, highlight, theme)], settings, onClose);
+}
+
+export function openTextOverlayItems(currentCtx: any, items: OverlayTextItem[], highlight: HighlightService, settings: PeekSettings, onClose?: () => void) {
+  openOverlayItems(currentCtx, (theme) => items.map((item) => itemFromText(item, highlight, theme)), settings, onClose);
 }

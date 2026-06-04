@@ -7,7 +7,7 @@ export function registerPeekCommand(pi: any, deps: {
   notify: (message: string, level?: "info" | "warning" | "error", force?: boolean) => void;
 }): void {
   pi.registerCommand("peek", {
-    description: "Peek commands: file, path, past, sub, con, disconnect, settings, clear, status, debug",
+    description: "Peek commands: file, diff, path, past, sub, con, disconnect, settings, clear, status, debug",
     handler: async (args: string, ctx: any) => {
       const [subcommand, ...rest] = args.trim() ? args.trim().split(/\s+/) : [];
       const argText = rest.join(" ");

@@ -4,6 +4,7 @@ import { scanInbox, startInboxWatcher } from "./inbox.js";
 import type { ConnectionStore } from "./connection.js";
 import type { PeekDirs, PeekSettings } from "./types.js";
 import type { PeekFileService } from "./file-service.js";
+import type { DiffTrackingController } from "./diff-tracking.js";
 import type { ToolTrackingController } from "./tool-tracking.js";
 import type { TrackedFilesStore } from "./tracking.js";
 
@@ -14,6 +15,7 @@ export type LifecycleDeps = {
   files: PeekFileService;
   tracking: TrackedFilesStore;
   toolTracking: ToolTrackingController;
+  diffTracking: DiffTrackingController;
   getCurrentCtx: () => any;
   setCurrentCtx: (ctx: any) => void;
   getSettings: () => PeekSettings;
@@ -68,9 +70,9 @@ export function registerLifecycle(pi: any, deps: LifecycleDeps): void {
     if (deps.tracking.trackedFiles.size === 0) deps.tracking.reconstructFromSessionWithCustomTools(ctx?.sessionManager, deps.getSettings().customTools);
     deps.tracking.restoreLastTurnFromSession(ctx?.sessionManager, deps.getSettings().customTools);
   });
-  pi.on("agent_start", async () => deps.toolTracking.onAgentStart());
+  pi.on("agent_start", async () => { deps.toolTracking.onAgentStart(); deps.diffTracking.onAgentStart(); });
   pi.on("agent_end", async () => deps.toolTracking.onAgentEnd());
-  pi.on("tool_result", async (event: unknown) => deps.toolTracking.onToolResult(event));
+  pi.on("tool_result", async (event: unknown) => { deps.toolTracking.onToolResult(event); deps.diffTracking.onToolResult(event); });
   pi.on("session_shutdown", async () => {
     watcher?.close();
     if (heartbeat) clearInterval(heartbeat);

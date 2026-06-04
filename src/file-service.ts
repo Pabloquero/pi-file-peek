@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomId, safeReadJson } from "./helpers.js";
 import { createOutgoingEnvelope, writeEnvelope, type OutgoingPeekPayload } from "./messages.js";
-import { openOverlay } from "./overlay.js";
+import { openOverlay, openTextOverlayItems, type OverlayTextItem } from "./overlay.js";
 import type { ConnectionStore } from "./connection.js";
 import type { HighlightService } from "./highlight.js";
 import type { PeekDirs, PeekEnvelope, PeekSettings } from "./types.js";
@@ -37,6 +37,20 @@ export class PeekFileService {
       return this.deps.notify(`Opened locally: ${filePath}`);
     }
     return this.deps.notify(`Sent file to ${this.sendFileRef(filePath).to_endpoint_id}: ${filePath}`);
+  }
+
+  sendOrOpenTextItems(items: OverlayTextItem[], label = "preview"): void {
+    if (items.length === 0) return;
+    this.deps.connection.refreshActivePeerFromPresence();
+    this.deps.updateStatus();
+    if (!this.deps.connection.activePeer) {
+      openTextOverlayItems(this.deps.getCtx(), items, this.deps.highlight, this.deps.getSettings());
+      return this.deps.notify(`Opened locally: ${label}`);
+    }
+    const content = items.length === 1 ? items[0]!.content : items.map((item, index) => `# ${index + 1}/${items.length} ${item.title ?? label}\n\n${item.content}`).join("\n\n---\n\n");
+    const title = items.length === 1 ? items[0]!.title ?? label : label;
+    const envelope = this.sendText(content, title);
+    return this.deps.notify(`Sent ${label} to ${envelope.to_endpoint_id}`);
   }
 
   sendOrOpenPath(filePath: string): void {
@@ -97,6 +111,10 @@ export class PeekFileService {
     writeEnvelope(this.deps.dirs, message);
     this.deps.pushDebug(`sent kind=${message.kind} to=${message.to_endpoint_id} path=${message.path ?? ""} message=${message.message ?? ""}`);
     return message;
+  }
+
+  private sendText(message: string, tag?: string): PeekEnvelope {
+    return this.sendToPeer({ kind: "text", message, tag });
   }
 
   private sendFileRef(filePath: string): PeekEnvelope {

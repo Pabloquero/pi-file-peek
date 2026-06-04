@@ -3,6 +3,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createPeekActions } from "./actions.js";
 import { registerPeekCommand } from "./command-registration.js";
 import { ConnectionStore } from "./connection.js";
+import { DiffTrackingController } from "./diff-tracking.js";
 import { EXTENSION_VERSION, ensurePeekDirs, loadPeekSettings, randomId, resolvePeekPath, resolveProjectFile as resolveProjectFileInRoot } from "./helpers.js";
 import { HighlightService } from "./highlight.js";
 import { PeekFileService } from "./file-service.js";
@@ -65,6 +66,7 @@ export function registerPeekExtension(pi: ExtensionAPI) {
   });
 
   const files = new PeekFileService({ dirs, endpointId, connection, highlight, getCtx: () => currentCtx, getSettings: () => settings, getDebug: () => debugEnabled, resolveProjectFile, resolveAnyFile, updateStatus, notify, pushDebug });
+  const diffTracking = new DiffTrackingController({ getCtx: () => currentCtx, getSettings: () => settings, pushDebug, notify, sendOrOpenTextItems: (items, label) => files.sendOrOpenTextItems(items, label) });
 
   const tryAutoConnect = () => {
     if (connection.autoConnectSuppressed || connection.activePeer) {
@@ -95,6 +97,7 @@ export function registerPeekExtension(pi: ExtensionAPI) {
     resolveProjectFile,
     refreshLastResponseFiles: (sessionManager?: any) => tracking.restoreLastTurnFromSession(sessionManager ?? currentCtx?.sessionManager, settings.customTools),
     getLastResponseFiles: () => [...new Set(tracking.lastTurnFiles)].filter((file) => !!resolveProjectFile(file)),
+    openDiffPreview: (sessionManager?: any) => diffTracking.openLatestFromMemoryOrSession(sessionManager ?? currentCtx?.sessionManager),
     sendOrOpen: (filePath) => files.sendOrOpen(filePath),
     sendOrOpenPath: (filePath) => files.sendOrOpenPath(filePath),
     updateStatus,
@@ -103,7 +106,7 @@ export function registerPeekExtension(pi: ExtensionAPI) {
     notify,
   });
 
-  registerLifecycle(pi, { dirs, presencePath, connection, files, tracking, toolTracking, getCurrentCtx: () => currentCtx, setCurrentCtx: (ctx) => { currentCtx = ctx; }, getSettings: () => settings, setSettings: (next) => { settings = next; }, setDebug: (value) => { debugEnabled = value; }, getProjectRoot, flushPresence, updateStatus, tryAutoConnect, clearAutoConnect: () => { if (autoConnectTimer) clearTimeout(autoConnectTimer); autoConnectTimer = undefined; }, pushDebug, notify });
+  registerLifecycle(pi, { dirs, presencePath, connection, files, tracking, toolTracking, diffTracking, getCurrentCtx: () => currentCtx, setCurrentCtx: (ctx) => { currentCtx = ctx; }, getSettings: () => settings, setSettings: (next) => { settings = next; }, setDebug: (value) => { debugEnabled = value; }, getProjectRoot, flushPresence, updateStatus, tryAutoConnect, clearAutoConnect: () => { if (autoConnectTimer) clearTimeout(autoConnectTimer); autoConnectTimer = undefined; }, pushDebug, notify });
   registerPeekCommand(pi, { getCtx: () => currentCtx, run: actions.run, notify });
 }
 

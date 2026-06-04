@@ -23,6 +23,7 @@ export type PeekActionsDeps = {
   resolveProjectFile: (filePath: string | undefined) => { relative: string; absolute: string } | undefined;
   refreshLastResponseFiles: (sessionManager?: any) => void;
   getLastResponseFiles: () => string[];
+  openDiffPreview: (sessionManager?: any) => boolean;
   sendOrOpen: (filePath: string) => void;
   sendOrOpenPath: (filePath: string) => void;
   updateStatus: () => void;
@@ -31,7 +32,7 @@ export type PeekActionsDeps = {
   notify: Notify;
 };
 
-type ToggleSetting = "autoSub" | "autoCon" | "debug" | "notifications" | "showHeader" | "showFooter" | "closeAll";
+type ToggleSetting = "autoSub" | "autoCon" | "debug" | "notifications" | "showHeader" | "showFooter" | "closeAll" | "autoDiff";
 
 export function createPeekActions(deps: PeekActionsDeps) {
   const getDuplicateBaseNames = (filePaths: string[]) => {
@@ -70,7 +71,7 @@ export function createPeekActions(deps: PeekActionsDeps) {
     if (!deps.getDebug()) return `Peek connected=${connected} subscribed=${subscribed} from=${source}`;
     const top = deps.tracking.topFiles(10).map((file, index) => `${index + 1}. ${file.path} [score=${file.score}, touches=${file.touchCount}, action=${file.lastAction}]`).join("\n") || "none";
     const recent = deps.getLastResponseFiles().join("\n") || "none";
-    return `Peek status\nendpoint=${deps.endpointId}\nconnected=${connected}\nsubscribed=${subscribed}\nfrom=${source}\nautoSub=${settings.autoSub}\nautoCon=${settings.autoCon}\nautoConnectPaused=${deps.connection.autoConnectSuppressed}\nnotifications=${settings.notifications}\nshowHeader=${settings.showHeader}\nshowFooter=${settings.showFooter}\ncloseAll=${settings.closeAll}\nrecent:\n${recent}\npast:\n${top}\nlogs:\n${deps.debugLog.slice(-10).join("\n") || "none"}`;
+    return `Peek status\nendpoint=${deps.endpointId}\nconnected=${connected}\nsubscribed=${subscribed}\nfrom=${source}\nautoSub=${settings.autoSub}\nautoCon=${settings.autoCon}\nautoConnectPaused=${deps.connection.autoConnectSuppressed}\nnotifications=${settings.notifications}\nshowHeader=${settings.showHeader}\nshowFooter=${settings.showFooter}\ncloseAll=${settings.closeAll}\nautoDiff=${settings.autoDiff}\nrecent:\n${recent}\npast:\n${top}\nlogs:\n${deps.debugLog.slice(-10).join("\n") || "none"}`;
   };
 
   const setSetting = (name: ToggleSetting, nextValue: boolean) => {
@@ -88,7 +89,7 @@ export function createPeekActions(deps: PeekActionsDeps) {
   const toggleSetting = (name: ToggleSetting) => setSetting(name, !deps.getSettings()[name]);
 
   const openSettingsMenu = async (uiCtx?: any) => {
-    const names: ToggleSetting[] = ["autoSub", "autoCon", "debug", "notifications", "showHeader", "showFooter", "closeAll"];
+    const names: ToggleSetting[] = ["autoSub", "autoCon", "debug", "notifications", "showHeader", "showFooter", "closeAll", "autoDiff"];
     const ctx = uiCtx ?? deps.getCtx();
     if (!ctx?.hasUI) return deps.notify(names.map((name) => `${name}=${deps.getSettings()[name]}`).join("\n"), "info", true);
     return openSettingsPicker(
@@ -150,6 +151,10 @@ export function createPeekActions(deps: PeekActionsDeps) {
         const duplicateBaseNames = getDuplicateBaseNames(files);
         const selected = await openFilePicker(uiCtx, files.map((file) => ({ value: file, label: fileLabelForList(file, duplicateBaseNames) })), "Peek file: pick from the last response");
         if (selected) deps.sendOrOpen(selected);
+        return;
+      }
+      case "diff": {
+        if (!deps.openDiffPreview(commandCtx?.sessionManager ?? deps.getCtx()?.sessionManager)) return deps.notify("No edit diff available yet", "warning", true);
         return;
       }
       case "path": {

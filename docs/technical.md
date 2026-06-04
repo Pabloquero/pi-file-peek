@@ -28,6 +28,7 @@ Then reload Pi:
 |---|---|
 | `/peek` | Open the action menu. |
 | `/peek file` | Open or send files from the real last assistant response. |
+| `/peek diff` | Preview the latest captured edit diff/patch. |
 | `/peek path <file-path>` | Open or send a specific relative or absolute file path. |
 | `/peek past` | Open or send tracked files from session history. |
 | `/peek sub` | Mark this session as a receiver. |
@@ -63,10 +64,13 @@ Project values override global values per key.
 | `showHeader` | `true` | `true`, `false` | Show the overlay header. |
 | `showFooter` | `true` | `true`, `false` | Show overlay help rows in the footer. Line info stays visible. |
 | `closeAll` | `false` | `true`, `false` | Close all stacked overlays at once instead of one by one. |
+| `autoDiff` | `false` | `true`, `false` | Automatically open a diff overlay after successful edit results. |
 | `keys.scrollUp` | `"up"` | Key name or Array with key names as String | Scroll one line up. |
 | `keys.scrollDown` | `"down"` | Key name or Array with key names as String | Scroll one line down. |
 | `keys.pageUp` | `"pageUp"` | Key name or Array with key names as String | Scroll one page up. |
 | `keys.pageDown` | `"pageDown"` | Key name or Array with key names as String | Scroll one page down. |
+| `keys.prevItem` | `"left"` | Key name or Array with key names as String | Move to the previous overlay item. |
+| `keys.nextItem` | `"right"` | Key name or Array with key names as String | Move to the next overlay item. |
 | `keys.close` | `"esc"` | Key name or Array with key names as String | Close the overlay. |
 | `customTools` | `[]` | array | Extra rules for recognizing files touched by custom tools. |
 | `extraLanguages` | `[]` | array | Extra extension-to-highlight.js language mappings for runtime extra languages. |
@@ -83,11 +87,14 @@ Copy-paste example:
     "showHeader": true,
     "showFooter": true,
     "closeAll": false,
+    "autoDiff": false,
     "keys": {
       "scrollUp": "up",
       "scrollDown": "down",
       "pageUp": "pageUp",
       "pageDown": "pageDown",
+      "prevItem": "left",
+      "nextItem": "right",
       "close": "esc"
     },
     "customTools": [],
@@ -99,6 +106,21 @@ Copy-paste example:
   }
 }
 ```
+
+## Diff preview model
+
+Peek captures successful edit-related `tool_result` events. The built-in `edit` tool is recognized directly, and other tools can be captured when their result details include `patch` or `diff`.
+
+Consumed fields:
+
+- `event.toolName`
+- `event.isError`
+- `event.details.patch`
+- `event.details.diff`
+
+`/peek diff` opens or sends the most recent captured diffs. It first uses in-memory state, then falls back to session history by scanning `ctx.sessionManager.getBranch()` for recent `toolResult` messages where `toolName === "edit"`. No custom session entries are persisted for diffs.
+
+If `autoDiff` is enabled, Peek opens or sends a diff overlay immediately after a successful matching tool result. If both fields exist, string `details.diff` is preferred; otherwise the unified patch string is used. Diff previews use Peek's own line coloring for added, removed, and context lines.
 
 ## Tracking model
 
@@ -160,7 +182,8 @@ Example:
 - It falls back to plain text when highlighting is unsupported.
 - It can use optional extra highlight assets from the runtime `extra/build/` folder.
 - It always shows line position info.
-- It respects `showHeader`, `showFooter`, `closeAll`, and custom keys.
+- It respects `showHeader`, `showFooter`, `closeAll`, `autoDiff`, and custom keys.
+- When an overlay contains multiple items, `keys.prevItem` and `keys.nextItem` switch between them and the subtitle shows an item counter.
 - Page scrolling uses the wrapped rendered view, including markdown previews.
 
 ## Connection behavior

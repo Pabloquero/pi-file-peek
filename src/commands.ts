@@ -1,5 +1,5 @@
-export const MENU_PEEK_COMMANDS = ["file", "past", "sub", "con", "disconnect", "settings", "clear", "status", "debug"] as const;
-export const PUBLIC_PEEK_COMMANDS = ["file", "path", "past", "sub", "con", "disconnect", "settings", "clear", "status", "debug"] as const;
+export const MENU_PEEK_COMMANDS = ["file", "diff", "past", "sub", "con", "disconnect", "settings", "clear", "status", "debug"] as const;
+export const PUBLIC_PEEK_COMMANDS = ["file", "diff", "path", "past", "sub", "con", "disconnect", "settings", "clear", "status", "debug"] as const;
 export const LEGACY_PEEK_COMMANDS = ["unsub", "discon"] as const;
 export const PEEK_COMMANDS = [...PUBLIC_PEEK_COMMANDS, ...LEGACY_PEEK_COMMANDS] as const;
 export type PeekCommand = typeof PEEK_COMMANDS[number];

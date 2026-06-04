@@ -132,6 +132,7 @@ export function loadPeekSettings(projectRoot: string): PeekSettings {
     showHeader: readBooleanSetting(globalConfig.showHeader, projectConfig.showHeader, defaults.showHeader),
     showFooter: readBooleanSetting(globalConfig.showFooter, projectConfig.showFooter, defaults.showFooter),
     closeAll: readBooleanSetting(globalConfig.closeAll, projectConfig.closeAll, defaults.closeAll),
+    autoDiff: readBooleanSetting(globalConfig.autoDiff, projectConfig.autoDiff, defaults.autoDiff),
     customTools: loadCustomTools(projectConfig.customTools ?? globalConfig.customTools),
     extraLanguages: loadMergedExtraLanguages(globalConfig.extraLanguages, projectConfig.extraLanguages),
     keys: loadMergedKeySettings(globalConfig.keys, projectConfig.keys, defaults.keys),
@@ -222,7 +223,7 @@ function normalizeKeyList(input: unknown, fallback: string[]): string[] {
 
 function loadKeySettings(raw: unknown, defaults: PeekKeySettings): PeekKeySettings {
   const record = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
-  const actions: PeekKeyAction[] = ["scrollUp", "scrollDown", "pageUp", "pageDown", "close"];
+  const actions: PeekKeyAction[] = ["scrollUp", "scrollDown", "pageUp", "pageDown", "prevItem", "nextItem", "close"];
   return Object.fromEntries(actions.map((action) => {
     const legacy = action === "scrollUp" ? record.lineUp : action === "scrollDown" ? record.lineDown : undefined;
     return [action, normalizeKeyList(record[action] ?? legacy, defaults[action])];
@@ -232,7 +233,7 @@ function loadKeySettings(raw: unknown, defaults: PeekKeySettings): PeekKeySettin
 function loadMergedKeySettings(globalRaw: unknown, projectRaw: unknown, defaults: PeekKeySettings): PeekKeySettings {
   const globalKeys = loadKeySettings(globalRaw, defaults);
   const projectRecord = projectRaw && typeof projectRaw === "object" ? projectRaw as Record<string, unknown> : {};
-  const actions: PeekKeyAction[] = ["scrollUp", "scrollDown", "pageUp", "pageDown", "close"];
+  const actions: PeekKeyAction[] = ["scrollUp", "scrollDown", "pageUp", "pageDown", "prevItem", "nextItem", "close"];
   return Object.fromEntries(actions.map((action) => {
     const legacy = action === "scrollUp" ? projectRecord.lineUp : action === "scrollDown" ? projectRecord.lineDown : undefined;
     const localValue = projectRecord[action] ?? legacy;

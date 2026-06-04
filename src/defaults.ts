@@ -13,6 +13,7 @@ export const DEFAULT_PEEK_SETTINGS: PeekSettings = {
   showHeader: true,
   showFooter: true,
   closeAll: false,
+  autoDiff: false,
   customTools: [],
   extraLanguages: {},
   keys: {
@@ -20,6 +21,8 @@ export const DEFAULT_PEEK_SETTINGS: PeekSettings = {
     scrollDown: ["down"],
     pageUp: ["pageUp"],
     pageDown: ["pageDown"],
+    prevItem: ["left"],
+    nextItem: ["right"],
     close: ["esc"],
   },
 };

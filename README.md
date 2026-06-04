@@ -77,6 +77,7 @@ For detailed behavior and runtime notes, see [docs/technical.md](docs/technical.
 
 - `/peek` — open menu
 - `/peek file` — open or send files from the last assistant response
+- `/peek diff` — open or send the latest captured edit diff/patch
 - `/peek path <file-path>` — open or send a specific file path
 - `/peek past` — open or send tracked files from session history
 - `/peek sub` — subscribe as receiver
@@ -105,10 +106,13 @@ Project settings override global settings.
 | `showHeader`      | `true`       | `true`, `false`                            | Show the overlay header.                                             |
 | `showFooter`      | `true`       | `true`, `false`                            | Show overlay help rows in the footer. Line info still stays visible. |
 | `closeAll`        | `false`      | `true`, `false`                            | Close all stacked overlays at once instead of one by one.            |
+| `autoDiff`        | `false`      | `true`, `false`                            | Automatically open diff overlays after successful edit results.      |
 | `keys.scrollUp`   | `"up"`       | Key name or Array with key names as String | Keys used to scroll one line up.                                     |
 | `keys.scrollDown` | `"down"`     | Key name or Array with key names as String | Keys used to scroll one line down.                                   |
 | `keys.pageUp`     | `"pageUp"`   | Key name or Array with key names as String | Keys used to scroll one page up.                                     |
 | `keys.pageDown`   | `"pageDown"` | Key name or Array with key names as String | Keys used to scroll one page down.                                   |
+| `keys.prevItem`   | `"left"`     | Key name or Array with key names as String | Keys used to move to the previous overlay item.                      |
+| `keys.nextItem`   | `"right"`    | Key name or Array with key names as String | Keys used to move to the next overlay item.                          |
 | `keys.close`      | `"esc"`      | Key name or Array with key names as String | Keys used to close the overlay.                                      |
 | `customTools`     | `[]`         | array                                      | Extra rules for recognizing files touched by custom tools.           |
 | `extraLanguages`  | `[]`         | array                                      | Extra extension-to-highlight.js language mappings for runtime extra languages. |
@@ -125,11 +129,14 @@ Copy-paste example:
     "showHeader": true,
     "showFooter": true,
     "closeAll": false,
+    "autoDiff": false,
     "keys": {
       "scrollUp": "up",
       "scrollDown": "down",
       "pageUp": "pageUp",
       "pageDown": "pageDown",
+      "prevItem": "left",
+      "nextItem": "right",
       "close": "esc"
     },
     "customTools": [],
